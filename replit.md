@@ -76,9 +76,9 @@ Preferred communication style: Simple, everyday language.
 
 **GitHub OAuth Integration**
 - Uses **Octokit REST API** (`@octokit/rest`) for GitHub API interactions
-- **Replit Connectors** system manages OAuth tokens with automatic refresh
-- Access tokens fetched dynamically via Replit's connector API with `X_REPLIT_TOKEN` header
-- Tokens never cached in client - fresh instances created per request to ensure validity
+- **Manual OAuth Setup**: User opted not to use Replit's GitHub connector integration
+- OAuth credentials (CLIENT_ID, CLIENT_SECRET) managed via Replit Secrets (encrypted storage)
+- Session secret for secure session management stored in Replit Secrets
 
 **Authorization Pattern**
 - GitHub client regenerated on each API call to avoid stale token issues
