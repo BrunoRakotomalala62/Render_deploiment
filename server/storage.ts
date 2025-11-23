@@ -3,9 +3,13 @@ import {
   type InsertProject,
   type Deployment, 
   type InsertDeployment,
-  type DeploymentLog 
+  type DeploymentLog,
+  projects,
+  deployments 
 } from "@shared/schema";
 import { randomUUID } from "crypto";
+import { db } from "./db";
+import { eq, desc } from "drizzle-orm";
 
 export interface IStorage {
   // Projects
@@ -128,4 +132,109 @@ export class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+export class DbStorage implements IStorage {
+  private deploymentLogs: Map<string, DeploymentLog[]>;
+
+  constructor() {
+    this.deploymentLogs = new Map();
+  }
+
+  async getProjects(): Promise<Project[]> {
+    const result = await db
+      .select()
+      .from(projects)
+      .orderBy(desc(projects.lastDeployedAt));
+    return result;
+  }
+
+  async getProject(id: string): Promise<Project | undefined> {
+    const result = await db
+      .select()
+      .from(projects)
+      .where(eq(projects.id, id))
+      .limit(1);
+    return result[0];
+  }
+
+  async createProject(insertProject: InsertProject): Promise<Project> {
+    const result = await db
+      .insert(projects)
+      .values(insertProject)
+      .returning();
+    console.log(`[Storage] Created project: ${result[0].name} (${result[0].id})`);
+    return result[0];
+  }
+
+  async updateProject(id: string, updates: Partial<Project>): Promise<Project | undefined> {
+    const result = await db
+      .update(projects)
+      .set(updates)
+      .where(eq(projects.id, id))
+      .returning();
+    if (result.length > 0) {
+      console.log(`[Storage] Updated project: ${result[0].name} (${id})`);
+    }
+    return result[0];
+  }
+
+  async getDeployments(projectId?: string): Promise<Deployment[]> {
+    const query = db.select().from(deployments);
+    
+    if (projectId) {
+      const result = await query
+        .where(eq(deployments.projectId, projectId))
+        .orderBy(desc(deployments.startedAt));
+      return result;
+    }
+    
+    const result = await query.orderBy(desc(deployments.startedAt));
+    return result;
+  }
+
+  async getDeployment(id: string): Promise<Deployment | undefined> {
+    const result = await db
+      .select()
+      .from(deployments)
+      .where(eq(deployments.id, id))
+      .limit(1);
+    return result[0];
+  }
+
+  async createDeployment(insertDeployment: InsertDeployment): Promise<Deployment> {
+    const result = await db
+      .insert(deployments)
+      .values(insertDeployment)
+      .returning();
+    this.deploymentLogs.set(result[0].id, []);
+    console.log(`[Storage] Created deployment: ${result[0].id} for project ${result[0].projectId}`);
+    return result[0];
+  }
+
+  async updateDeployment(id: string, updates: Partial<Deployment>): Promise<Deployment | undefined> {
+    const result = await db
+      .update(deployments)
+      .set(updates)
+      .where(eq(deployments.id, id))
+      .returning();
+    if (result.length > 0) {
+      console.log(`[Storage] Updated deployment: ${id} - status: ${result[0].status}`);
+    }
+    return result[0];
+  }
+
+  async getDeploymentLogs(deploymentId: string): Promise<DeploymentLog[]> {
+    return this.deploymentLogs.get(deploymentId) || [];
+  }
+
+  async addDeploymentLog(deploymentId: string, log: DeploymentLog): Promise<void> {
+    const logs = this.deploymentLogs.get(deploymentId) || [];
+    logs.push(log);
+    this.deploymentLogs.set(deploymentId, logs);
+  }
+
+  async clearDeploymentLogs(deploymentId: string): Promise<void> {
+    this.deploymentLogs.delete(deploymentId);
+  }
+}
+
+export const storage = new DbStorage();
