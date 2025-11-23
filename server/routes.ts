@@ -6,8 +6,11 @@ import { getUncachableGitHubClient } from "./github-client";
 import { deployToVercel, registerDeploymentListener, unregisterDeploymentListener } from "./vercel-deployer";
 import { z } from "zod";
 import { insertProjectSchema, insertDeploymentSchema } from "@shared/schema";
+import { setupAuthRoutes } from "./auth-routes";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  setupAuthRoutes(app);
+
   // GitHub repositories endpoint
   app.get("/api/repositories", async (req, res) => {
     try {
