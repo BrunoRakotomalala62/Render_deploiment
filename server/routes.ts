@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
 import { getUncachableGitHubClient } from "./github-client";
-import { simulateDeployment, registerDeploymentListener, unregisterDeploymentListener } from "./deployment-simulator";
+import { deployToVercel, registerDeploymentListener, unregisterDeploymentListener } from "./vercel-deployer";
 import { z } from "zod";
 import { insertProjectSchema, insertDeploymentSchema } from "@shared/schema";
 
@@ -195,9 +195,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         commitHash,
       });
       
-      // Start deployment simulation asynchronously
-      simulateDeployment(deployment.id, project.id, project.name, project.type).catch(err => {
-        console.error("[API] Deployment simulation error:", err);
+      // Start Vercel deployment asynchronously
+      deployToVercel(
+        deployment.id, 
+        project.id, 
+        project.name, 
+        project.repository,
+        project.branch,
+        project.type
+      ).catch(err => {
+        console.error("[API] Vercel deployment error:", err);
       });
       
       console.log(`[API] Created deployment ${deployment.id} for project ${project.id}`);
