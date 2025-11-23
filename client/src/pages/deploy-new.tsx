@@ -12,8 +12,11 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { GitBranch, Rocket, Search } from "lucide-react";
 import { SiGithub } from "react-icons/si";
 import type { GitHubRepository, GitHubBranch } from "@shared/schema";
+import { useGitHubAuth } from "@/hooks/useGitHubAuth";
+import { GitHubConnectCard } from "@/components/github-connect-card";
 
 export default function DeployNew() {
+  const { isAuthenticated, isLoading: authLoading } = useGitHubAuth();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
@@ -22,8 +25,9 @@ export default function DeployNew() {
   const [projectName, setProjectName] = useState("");
   const [projectType, setProjectType] = useState<"frontend" | "backend" | "fullstack">("frontend");
 
-  const { data: repositories, isLoading: loadingRepos } = useQuery<GitHubRepository[]>({
+  const { data: repositories, isLoading: loadingRepos, error: repoError } = useQuery<GitHubRepository[]>({
     queryKey: ["/api/repositories"],
+    enabled: isAuthenticated,
   });
 
   const { data: branches, isLoading: loadingBranches } = useQuery<GitHubBranch[]>({
@@ -75,6 +79,21 @@ export default function DeployNew() {
       type: projectType,
     });
   };
+
+  if (authLoading) {
+    return (
+      <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <Skeleton className="h-12 w-64 mx-auto" />
+          <Skeleton className="h-6 w-48 mx-auto" />
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <GitHubConnectCard />;
+  }
 
   return (
     <div className="min-h-[calc(100vh-4rem)]">
